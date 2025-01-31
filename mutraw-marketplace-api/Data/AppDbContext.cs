@@ -6,7 +6,7 @@ namespace mutraw_marketplace_api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext(options)
 {
-    public DbSet<Credential> Credentials { get; set; }
+    public DbSet<Employee> Credentials { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<ProductCategory> ProductCategories { get; set; }
     public DbSet<ProductSubCategory> ProductSubCategories { get; set; }

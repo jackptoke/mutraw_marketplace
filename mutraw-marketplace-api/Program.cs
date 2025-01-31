@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using mutraw_marketplace_api.Data;
@@ -26,6 +27,33 @@ public class Program
                     .AllowAnyHeader();
             });
         });
+        // Setting up Dependency Injection
+        builder.Services.AddIdentity<Employee, IdentityRole>(options =>
+        {
+            options.Password.RequiredLength = 8;
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = false;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.User.RequireUniqueEmail = true;
+        }).AddEntityFrameworkStores<AppDbContext>();
+
+        // Cookie settings - But we are not using this
+        // builder.Services.ConfigureApplicationCookie(options =>
+        // {
+        //     options.LoginPath = "/auth/login";
+        //     options.LogoutPath = "/auth/logout";
+        //     options.AccessDeniedPath = "/auth/access-denied";
+        //     options.SlidingExpiration = true;
+        //     options.ExpireTimeSpan = TimeSpan.FromMinutes(15);
+        //     options.Cookie.Name = "mutraw-marketplace-cookie";
+        //     options.Cookie.HttpOnly = true;
+        //     options.Cookie.SameSite = SameSiteMode.Strict;
+        //     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        // });
+        
         builder.Services.AddScoped<ICredentialRepo, CredentialRepo>();
         builder.Services.AddScoped<IRepository<Product>, ProductRepo>();
         builder.Services.AddControllers();

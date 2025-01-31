@@ -18,10 +18,14 @@ public class AuthsController(ICredentialRepo credentialRepo, IConfiguration conf
     [HttpPost("authenticate")]
     public async Task<IActionResult> Authenticate([FromBody] CredentialCreateDto credential)
     {
-        var cred = new Credential
+        var cred = new Employee
         {
-            Username = credential.Username,
-            Password = credential.Password
+            UserName = credential.Username,
+            Email = credential.Email,
+            PasswordHash = credential.Password,
+            FirstName = credential.FirstName,
+            LastName = credential.LastName,
+            DateOfBirth = credential.DateOfBirth
         };
         
         var result = await credentialRepo.AuthenticateAsync(cred);
@@ -29,7 +33,8 @@ public class AuthsController(ICredentialRepo credentialRepo, IConfiguration conf
         {
             var claims = new List<Claim>
             {
-                new(ClaimTypes.Name, cred.Username),
+                new(ClaimTypes.Name, cred.UserName),
+                new(ClaimTypes.Email, cred.Email),
                 new(ClaimTypes.Role, "User"),
                 // new Claim("Admin", "true"),
                 // new Claim("Manager", "true")
@@ -61,9 +66,9 @@ public class AuthsController(ICredentialRepo credentialRepo, IConfiguration conf
     }
 
     [HttpPost]
-    public async Task<IActionResult> Register([FromBody] Credential credential)
+    public async Task<IActionResult> Register([FromBody] Employee employee)
     {
-        await credentialRepo.CreateAsync(credential);
+        await credentialRepo.CreateAsync(employee);
         return Created();
     }
 
@@ -74,9 +79,32 @@ public class AuthsController(ICredentialRepo credentialRepo, IConfiguration conf
         var credentials = await credentialRepo.GetAllAsync();
         var credDtos = credentials.Select(cred => new CredentialDto
         {
-            Username = cred.Username,
+            Username = cred.UserName ?? "",
         }).ToList();
         return Ok(credDtos);
+    }
+    
+    [HttpPut("{username}/password")]
+    [Authorize(Policy = "OwnerOrAdminPolicy")]
+    public async Task<IActionResult> UpdatePassword([FromRoute]string username, [FromBody] CredentialPasswordUpdateDto credential)
+    {
+        // Check the current password
+        var cred = new Employee
+        {
+            UserName = username,
+            PasswordHash = credential.OldPassword
+        };
+        var result = await credentialRepo.AuthenticateAsync(cred);
+        // If failed, return Unauthorised.
+        if (!result) return Unauthorized();
+        // If success, update the password.
+        var newCred = new Employee
+        {
+            UserName = credential.Username,
+            PasswordHash = credential.NewPassword
+        };
+        await credentialRepo.UpdateAsync(newCred);
+        return NoContent();
     }
     
     [HttpPut("{username}")]
@@ -84,21 +112,17 @@ public class AuthsController(ICredentialRepo credentialRepo, IConfiguration conf
     public async Task<IActionResult> Update([FromRoute]string username, [FromBody] CredentialUpdateDto credential)
     {
         // Check the current password
-        var cred = new Credential
-        {
-            Username = username,
-            Password = credential.OldPassword
-        };
-        var result = await credentialRepo.AuthenticateAsync(cred);
-        // If failed, return Unauthorised.
-        if (!result) return Unauthorized();
+        var employee = await credentialRepo.GetByUsernameAsync(username);
+        
+        if(employee == null) return NotFound();
+        
         // If success, update the password.
-        var newCred = new Credential
-        {
-            Username = credential.Username,
-            Password = credential.NewPassword
-        };
-        await credentialRepo.UpdateAsync(newCred);
+        employee.FirstName = credential.FirstName;
+        employee.LastName = credential.LastName;
+        employee.DateOfBirth = credential.DateOfBirth;
+        employee.Email = credential.Email;
+        
+        await credentialRepo.UpdateAsync(employee);
         return NoContent();
     }
 

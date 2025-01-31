@@ -9,36 +9,41 @@ public class CredentialRepo(AppDbContext context) : ICredentialRepo
 {
     private readonly PasswordHasher<string> _passwordHasher = new();
 
-    public async Task<bool> AuthenticateAsync(Credential credential)
+    public async Task<bool> AuthenticateAsync(Employee employee)
     {
-        var cred = await context.Credentials.FirstOrDefaultAsync(x => x.Username == credential.Username);
+        var cred = await context.Credentials.FirstOrDefaultAsync(x => x.UserName == employee.UserName);
         if(cred == null) return false;
-        var result = _passwordHasher.VerifyHashedPassword(credential.Username, cred.Password, credential.Password);
+        var result = _passwordHasher.VerifyHashedPassword(employee.UserName ?? "", cred.PasswordHash ?? "", employee.PasswordHash ?? "");
         return result == PasswordVerificationResult.Success;
     }
 
-    public async Task CreateAsync(Credential credential)
+    public async Task CreateAsync(Employee employee)
     {
-        credential.Password = _passwordHasher.HashPassword(credential.Username, credential.Password);
-        await context.Credentials.AddAsync(credential);
+        employee.PasswordHash = _passwordHasher.HashPassword(employee.UserName ?? "", employee.PasswordHash ?? "");
+        await context.Credentials.AddAsync(employee);
         await context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<Credential>> GetAllAsync()
+    public async Task<IEnumerable<Employee>> GetAllAsync()
     {
         return await context.Credentials.ToListAsync();
     }
 
-    public async Task UpdateAsync(Credential credential)
+    public async Task<Employee?> GetByUsernameAsync(string username)
     {
-        credential.Password = _passwordHasher.HashPassword(credential.Username, credential.Password);
-        context.Credentials.Update(credential);
+        return await context.Credentials.Where(x => x.UserName == username).FirstOrDefaultAsync();
+    }
+
+    public async Task UpdateAsync(Employee employee)
+    {
+        employee.PasswordHash = _passwordHasher.HashPassword(employee.UserName ?? "", employee.PasswordHash ?? "");
+        context.Credentials.Update(employee);
         await context.SaveChangesAsync();
     }
 
     public Task DeleteAsync(string username)
     {
-        context.Credentials.Remove(new Credential { Username = username });
+        context.Credentials.Remove(new Employee { UserName = username });
         return context.SaveChangesAsync();
     }
 }
